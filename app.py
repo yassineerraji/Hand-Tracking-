@@ -17,6 +17,21 @@ st.set_page_config(
     layout="wide",
 )
 
+# Config of the ICE (STUN/TURN) servers
+# -----------------------------------------------------------------------
+RTC_CONFIGURATION = RTCConfiguration(
+    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+)
+
+ctx = webrtc_streamer(
+    key="hand-tracking",
+    mode=WebRtcMode.SENDRECV,
+    rtc_configuration=RTC_CONFIGURATION,  # Ajout de cette ligne
+    media_stream_constraints={"video": True, "audio": False},
+    async_processing=True,
+)
+# -----------------------------------------------------------------------
+
 # -----------------------------------------------------------------------
 # Model download (the modern MediaPipe Tasks API needs a .task model file;
 # it is not bundled in the pip package, so we fetch it once and cache it

@@ -3,4 +3,5 @@ streamlit-webrtc
 mediapipe
 opencv-python-headless
 av
+aiortc
 numpy
