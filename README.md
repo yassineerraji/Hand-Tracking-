@@ -4,9 +4,9 @@ A live, browser-based hand-tracking app built with **OpenCV**, **MediaPipe**, an
 
 This project is a rebuild of a classic OpenCV + MediaPipe hand-tracking script, redesigned specifically to run as a public, clickable web app rather than a local-only Python script.
 
-## Why a rebuild (not just a deploy) was necessary
+## Why a rebuild ?
 
-Two separate problems made a direct "deploy the original script" approach impossible:
+Two separate problems made a direct deployment approach impossible:
 
 1. **No server-side camera.** The original approach uses `cv2.VideoCapture(0)`, which opens *the machine's own* webcam in a local window — fine on a laptop, but impossible on a cloud server with no physical camera. The fix: `streamlit-webrtc` streams the **visitor's own browser webcam** over WebRTC, processes each frame live with MediaPipe, and streams the annotated result back — no video ever touches disk or leaves the session.
 2. **A removed API.** MediaPipe's older `mp.solutions.hands` interface (used in most tutorials and older projects) has been removed in current MediaPipe releases. This app is built on the actively maintained `mediapipe.tasks` `HandLandmarker` API instead, with the required model file fetched automatically on first run (see `ensure_model_downloaded()` in `app.py`) so there's no manual asset step.
