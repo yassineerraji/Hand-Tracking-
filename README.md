@@ -1,46 +1,78 @@
-# Real-Time Hand Tracking (Browser-Deployed)
+# Real-Time Hand Tracking
 
-A live, browser-based hand-tracking app built with **OpenCV**, **MediaPipe**, and **Streamlit**, using **streamlit-webrtc** to stream and process your webcam feed directly in the browser — no local install needed, no server-side camera required.
+A live hand-tracking web app built with **MediaPipe**, **OpenCV** and **Streamlit**. It streams your webcam to the app over WebRTC (via **streamlit-webrtc**), detects hand landmarks on every frame, and streams the annotated video straight back to your browser. There's nothing to install: open the page and allow camera access.
 
-This project is a rebuild of a classic OpenCV + MediaPipe hand-tracking script, redesigned specifically to run as a public, clickable web app rather than a local-only Python script.
-
-## Why a rebuild ?
-
-Two separate problems made a direct deployment approach impossible:
-
-1. **No server-side camera.** The original approach uses `cv2.VideoCapture(0)`, which opens *the machine's own* webcam in a local window — fine on a laptop, but impossible on a cloud server with no physical camera. The fix: `streamlit-webrtc` streams the **visitor's own browser webcam** over WebRTC, processes each frame live with MediaPipe, and streams the annotated result back — no video ever touches disk or leaves the session.
-2. **A removed API.** MediaPipe's older `mp.solutions.hands` interface (used in most tutorials and older projects) has been removed in current MediaPipe releases. This app is built on the actively maintained `mediapipe.tasks` `HandLandmarker` API instead, with the required model file fetched automatically on first run (see `ensure_model_downloaded()` in `app.py`) so there's no manual asset step.
+This project is a rebuild of a classic OpenCV + MediaPipe hand-tracking script, redesigned to run as a public web app instead of a local-only Python script.
 
 ## Features
 
 - Real-time multi-hand landmark detection (up to 4 hands)
 - Left/right hand classification
 - Live finger-count overlay per detected hand
-- Adjustable detection/tracking confidence thresholds (sidebar)
-- Two landmark rendering styles (full skeleton or dots only)
+- Adjustable detection and tracking confidence thresholds
+- Two landmark styles: full skeleton or dots only
 - Live FPS counter
-- Fully client-camera-driven — no footage stored or transmitted anywhere
+- Privacy-friendly: frames are processed in memory and discarded, nothing is recorded or stored
+
+## How it works
+
+The original script had two problems that ruled out deploying it as-is:
+
+1. **No server-side camera.** `cv2.VideoCapture(0)` opens the webcam of the machine running the code. That works on a laptop, but a cloud server has no camera. Here, `streamlit-webrtc` streams the **visitor's own webcam** from the browser to the app instead. Each frame is processed live with MediaPipe, and the annotated result is sent back.
+2. **A removed API.** MediaPipe's legacy `mp.solutions.hands` interface, used in most tutorials, no longer exists in current releases. This app uses the maintained `mediapipe.tasks` `HandLandmarker` API instead. Its model file ships in `models/` and is re-downloaded automatically if it's missing.
+
+Finger counting uses landmark geometry alone, with no extra model. See `hand_tracking/gestures.py`.
+
+## Project structure
+
+```
+app.py                  Streamlit entrypoint: wires the modules together
+hand_tracking/
+  config.py             Paths, colors, defaults and the Settings dataclass
+  model.py              Locates / downloads the MediaPipe model
+  gestures.py           Finger counting and handedness (pure logic)
+  drawing.py            OpenCV overlays (skeleton, labels, FPS)
+  processor.py          Per-frame WebRTC video processor
+  ice.py                STUN/TURN server configuration (Cloudflare)
+  ui.py                 Sidebar controls and page content
+models/                 MediaPipe hand landmarker model
+tests/                  pytest suite
+requirements.txt        Runtime dependencies (pinned)
+requirements-dev.txt    Runtime + test dependencies
+packages.txt            System libraries installed by Streamlit Cloud
+```
 
 ## Run locally
 
+Requires Python 3.10 or newer.
+
 ```bash
-pip install -r requirements.txt
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements-dev.txt
 streamlit run app.py
 ```
 
-Then open the local URL Streamlit prints (usually `http://localhost:8501`) and allow camera access when prompted.
+Open http://localhost:8501 and allow camera access. Run the tests with `pytest`.
 
 ## Deploy (Streamlit Community Cloud, free)
 
-1. Push this folder to its own GitHub repository.
-2. Go to [share.streamlit.io](https://share.streamlit.io), sign in with GitHub.
-3. Click "New app," select this repo, set the main file to `app.py`, and deploy.
-4. You'll get a live URL like `yourapp.streamlit.app` — that's the link to put in your portfolio.
+Cloud servers sit behind NATs that block direct WebRTC connections, so the app needs a **TURN relay** in production (STUN alone only works locally). It uses Cloudflare's free TURN service:
+
+1. In the Cloudflare dashboard, go to **Realtime → TURN Server → Create**, then copy the *Turn Token ID* and the *API Token*.
+2. On [share.streamlit.io](https://share.streamlit.io), click **Create app**. Pick this repo, branch `main`, main file `app.py`.
+3. Under **Advanced settings**, choose Python 3.12 and paste this into **Secrets**:
+   ```toml
+   CF_TURN_KEY_ID = "your-turn-token-id"
+   CF_TURN_API_TOKEN = "your-api-token"
+   ```
+4. Click **Deploy**.
+
+To use TURN locally, copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` (it's git-ignored) and fill in the same two values. Without them, the app falls back to STUN only, which works on localhost.
 
 ## Tech stack
 
-`Python` · `OpenCV` · `MediaPipe` · `Streamlit` · `streamlit-webrtc`
+`Python` · `MediaPipe` · `OpenCV` · `Streamlit` · `streamlit-webrtc` · `Cloudflare TURN`
 
 ## Credit
 
-Concept inspired by open-source OpenCV/MediaPipe hand-tracking scripts in the computer vision community; implementation, browser-deployment architecture, and feature additions (finger counting, adjustable settings, multi-hand labeling) built independently for this project.
+Concept inspired by open-source OpenCV/MediaPipe hand-tracking scripts in the computer vision community. The implementation, browser-deployment architecture and added features (finger counting, adjustable settings, multi-hand labeling) were built independently for this project.
