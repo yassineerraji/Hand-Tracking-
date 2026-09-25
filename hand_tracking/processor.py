@@ -32,6 +32,7 @@ class HandTrackingProcessor:
         self._built_with = None
         self._start_time = time.time()
         self._prev_time = self._start_time
+        self._last_timestamp_ms = -1
 
     def _ensure_landmarker(self, settings: Settings):
         wanted = (settings.max_hands, settings.detection_confidence, settings.tracking_confidence)
@@ -59,7 +60,12 @@ class HandTrackingProcessor:
 
         rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        timestamp_ms = int((time.time() - self._start_time) * 1000)
+        # VIDEO mode rejects non-increasing timestamps, and two frames can
+        # land in the same millisecond, so force strict monotonicity.
+        timestamp_ms = max(
+            int((time.time() - self._start_time) * 1000), self._last_timestamp_ms + 1
+        )
+        self._last_timestamp_ms = timestamp_ms
         result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
 
         for idx, hand_landmarks in enumerate(result.hand_landmarks):

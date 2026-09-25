@@ -40,6 +40,8 @@ tests/                  pytest suite
 requirements.txt        Runtime dependencies (pinned)
 requirements-dev.txt    Runtime + test dependencies
 packages.txt            System libraries installed by Streamlit Cloud
+Dockerfile              Container image (used by Hugging Face Spaces)
+.github/workflows/      Auto-deploy to Hugging Face Spaces
 ```
 
 ## Run locally
@@ -54,20 +56,34 @@ streamlit run app.py
 
 Open http://localhost:8501 and allow camera access. Run the tests with `pytest`.
 
-## Deploy (Streamlit Community Cloud, free)
+Or with Docker:
 
-Cloud servers sit behind NATs that block direct WebRTC connections, so the app needs a **TURN relay** in production (STUN alone only works locally). It uses Cloudflare's free TURN service:
+```bash
+docker build -t hand-tracking .
+docker run -p 8501:8501 hand-tracking
+```
 
-1. In the Cloudflare dashboard, go to **Realtime → TURN Server → Create**, then copy the *Turn Token ID* and the *API Token*.
-2. On [share.streamlit.io](https://share.streamlit.io), click **Create app**. Pick this repo, branch `main`, main file `app.py`.
-3. Under **Advanced settings**, choose Python 3.12 and paste this into **Secrets**:
-   ```toml
-   CF_TURN_KEY_ID = "your-turn-token-id"
-   CF_TURN_API_TOKEN = "your-api-token"
-   ```
-4. Click **Deploy**.
+## Deploy
 
-To use TURN locally, copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` (it's git-ignored) and fill in the same two values. Without them, the app falls back to STUN only, which works on localhost.
+Cloud servers sit behind NATs that block direct WebRTC connections, so the app needs a **TURN relay** in production (STUN alone only works locally). It uses Cloudflare's free TURN service. In the Cloudflare dashboard, go to **Realtime → TURN Server → Create**, then copy the *Turn Token ID* and the *API Token*.
+
+The app reads them as `CF_TURN_KEY_ID` and `CF_TURN_API_TOKEN`, from environment variables or from `.streamlit/secrets.toml`. To use TURN locally, copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` (it's git-ignored) and fill in both values. Without them, the app falls back to STUN only, which works on localhost.
+
+### Hugging Face Spaces (free, recommended)
+
+The Space runs the `Dockerfile`. A GitHub Action (`.github/workflows/deploy-hf-space.yml`) pushes every commit on `main` to it.
+
+1. On [huggingface.co/new-space](https://huggingface.co/new-space), create a Space with SDK **Docker**, template **Blank** and hardware **CPU basic** (free).
+2. In the Space's **Settings → Variables and secrets**, add the secrets `CF_TURN_KEY_ID` and `CF_TURN_API_TOKEN`.
+3. Create a Hugging Face access token with **Write** permission at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
+4. In this GitHub repo, go to **Settings → Secrets and variables → Actions**:
+   - add the secret `HF_TOKEN`, set to the token from step 3;
+   - on the **Variables** tab, add `HF_SPACE`, set to `your-hf-username/your-space-name`.
+5. Push to `main`, or run the workflow from the **Actions** tab.
+
+### Streamlit Community Cloud (free)
+
+On [share.streamlit.io](https://share.streamlit.io), create an app from this repo (main file `app.py`). Under **Advanced settings**, choose Python 3.12 and paste the two `CF_TURN_...` lines into **Secrets**, in the same format as `secrets.toml`. System libraries are installed from `packages.txt`.
 
 ## Tech stack
 

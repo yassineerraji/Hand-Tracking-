@@ -1,4 +1,6 @@
 """Streamlit entrypoint: `streamlit run app.py`."""
+import os
+
 import streamlit as st
 from streamlit_webrtc import RTCConfiguration, WebRtcMode, webrtc_streamer
 
@@ -20,16 +22,20 @@ def cached_model_path():
     return ensure_model()
 
 
+def read_secret(name):
+    """Reads a secret from the environment (Hugging Face Space secrets, Docker)
+    or from .streamlit/secrets.toml (local runs, Streamlit Cloud)."""
+    if os.environ.get(name):
+        return os.environ[name]
+    try:
+        return st.secrets.get(name)
+    except FileNotFoundError:  # no secrets.toml at all
+        return None
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def cached_ice_servers():
-    # Credentials live in .streamlit/secrets.toml locally, or in the
-    # Streamlit Cloud app's Secrets settings when deployed.
-    try:
-        key_id = st.secrets.get("CF_TURN_KEY_ID")
-        api_token = st.secrets.get("CF_TURN_API_TOKEN")
-    except FileNotFoundError:  # no secrets configured at all
-        key_id = api_token = None
-    return get_ice_servers(key_id, api_token)
+    return get_ice_servers(read_secret("CF_TURN_KEY_ID"), read_secret("CF_TURN_API_TOKEN"))
 
 
 settings = render_sidebar()

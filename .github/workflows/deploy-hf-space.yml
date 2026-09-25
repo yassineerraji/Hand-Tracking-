@@ -1,0 +1,51 @@
+name: Deploy to Hugging Face Spaces
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Space is a snapshot of this repo with two differences:
+      # - README.md gets the YAML header Spaces reads its config from
+      #   (kept out of the GitHub README, where it would render as a table)
+      # - the model file is dropped, since the Hub rejects binaries pushed
+      #   without LFS; the Dockerfile downloads it at build time instead
+      - name: Build Space snapshot
+        run: |
+          cat - README.md > README.space.md <<'EOF'
+          ---
+          title: Real-Time Hand Tracking
+          emoji: ✋
+          colorFrom: green
+          colorTo: blue
+          sdk: docker
+          app_port: 8501
+          pinned: false
+          short_description: Live hand landmarks and finger counting via WebRTC
+          ---
+
+          EOF
+          mv README.space.md README.md
+          rm -f models/*.task
+
+      - name: Push to Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          if [ -z "$HF_TOKEN" ] || [ -z "$HF_SPACE" ]; then
+            echo "::warning::HF_TOKEN secret or HF_SPACE variable not set; skipping deploy"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan space
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_SHA::7} from GitHub"
+          git push --force "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" space:main
