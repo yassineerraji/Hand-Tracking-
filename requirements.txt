@@ -1,5 +1,7 @@
 streamlit==1.58.0
-streamlit-webrtc==0.72.1
+# 0.72.1+ can kill a new connection as "orphaned" right after START (the
+# player goes black and collapses), due to a race in its script-run counting.
+streamlit-webrtc==0.72.0
 mediapipe==0.10.35
 av==16.1.0
 numpy==2.4.6
