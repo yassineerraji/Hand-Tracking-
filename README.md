@@ -1,6 +1,6 @@
 # ✋ Real-Time Hand Tracking
 
-**[▶ Live demo](LIVE_DEMO_URL)**: open it, allow camera access, and show your hands.
+**[▶ Live demo](https://hand-tracking.streamlit.app)**: open it, allow camera access, and show your hands.
 
 A real-time computer vision web app that detects hands in your webcam feed, tracks 21 keypoints per hand, identifies left from right, and counts raised fingers live in the browser.
 
